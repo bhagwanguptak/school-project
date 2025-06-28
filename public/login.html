@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-g" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Login</title>
+  <link rel="stylesheet" href="/css/login.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+  <div class="login-container">
+    <h2>Admin Login</h2>
+    <!-- The form action itself is less critical because JS prevents the default, but it's good practice to update it. -->
+    <form id="loginForm" > <!-- ★★★ FIX #1 ★★★ -->
+      <div class="form-group">
+        <input type="text" id="username" name="username" placeholder=" " required />
+        <label for="username">Username</label>
+      </div>
+      <div class="form-group">
+        <input type="password" id="password" name="password" placeholder=" " required />
+        <label for="password">Password</label>
+        <i class="bi bi-eye-slash" id="togglePassword"></i>
+      </div>
+      <button class="login-btn" type="submit">Log In</button>
+    </form>
+    <div id="errorMessage" class="error-message" style="display:none; margin-top: 1rem;"></div>
+
+    <script>
+      // This part handles old redirect-based errors, it's safe to keep.
+      const params = new URLSearchParams(window.location.search);
+      const errorDiv = document.getElementById('errorMessage');
+      if (params.has('error')) {
+        errorDiv.textContent = decodeURIComponent(params.get('error'));
+        errorDiv.style.display = 'block';
+      }
+      if (params.has('unauthorized')) {
+          errorDiv.textContent = 'Your session has expired. Please log in again.';
+          errorDiv.style.display = 'block';
+      }
+
+      // The main login logic using JavaScript Fetch
+      const loginForm = document.getElementById('loginForm');
+      loginForm.addEventListener('submit', async function(event) {
+        // This prevents the browser from using the form's 'action' and lets our script handle everything.
+        event.preventDefault(); 
+        
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        errorDiv.style.display = 'none'; // Hide previous errors
+
+        try {
+          // ★★★ FIX #2: The fetch URL MUST match the server's API endpoint ★★★
+          const response = await fetch('/api/login', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+          });
+          
+          const data = await response.json();
+          console.log(data);
+          
+         if (data.success && data.token) {
+            
+            // ★★★★★ THIS IS THE LOGIC YOU WERE ASKING ABOUT ★★★★★
+            
+            // 1. Store the token in the browser's Local Storage.
+            console.log('Login successful. Storing token in localStorage.');
+            localStorage.setItem('token', data.token);
+            
+            // 2. Redirect the user to the admin page.
+            console.log('Redirecting to /admin.html');
+            window.location.href = '/admin.html';
+            
+          } else {
+            // Show the error message from the server's JSON response.
+            errorMessage.textContent = data.message || 'Login failed. Please check your credentials.';
+            errorMessage.style.display = 'block';
+          }
+        } catch (err) {
+          console.error('Login error:', err);
+          errorMessage.textContent = 'An error occurred connecting to the server.';
+          errorMessage.style.display = 'block';
+        }
+      });
+
+      // Show/hide password functionality (this code is correct and needs no changes)
+      const togglePassword = document.getElementById('togglePassword');
+      const passwordInput = document.getElementById('password');
+
+      if (togglePassword && passwordInput) {
+        togglePassword.setAttribute('title', 'Show password');
+        togglePassword.addEventListener('click', function () {
+          const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+          passwordInput.setAttribute('type', type);
+          
+          this.classList.toggle('bi-eye');
+          this.classList.toggle('bi-eye-slash');
+          this.setAttribute('title', type === 'password' ? 'Show password' : 'Hide password');
+        });
+      }
+    </script>
+  </div>
+</body>
+</html>
