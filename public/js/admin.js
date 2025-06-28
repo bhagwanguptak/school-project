@@ -1,25 +1,24 @@
-// admin.js - Manages admin panel and dynamic content updates for school.html
+const { request } = require("express");
 
-const API_BASE_URL = ''; // Relative path, so it works with any host/port
+const API_BASE_URL = '';
 const MAX_FACILITY_CARDS = 6;
 
-// CKEditor instances
+
 let aboutUsTextEditorInstance;
 let academicsEditorInstance;
 let admissionEditorInstance;
 let facilitiesTextEditorInstance;
 
-// Helper function to safely get elements
+
 function getElement(id) { return document.getElementById(id); }
 function querySelector(selector) { return document.querySelector(selector); }
 function querySelectorAll(selector) { return document.querySelectorAll(selector); }
 
 async function initAdminPage() {
     console.log("Initializing admin page components for the first time...");
-    await initializeEditors(); // Your original initialize function can stay the same now
+    await initializeEditors(); 
     setupImagePreviews();
-    // You could also move event listener attachments here, e.g., for the save button
-    // getElement('save-button-id').addEventListener('click', saveAdminSettings);
+ 
 }
 
 // Initialize CKEditor
@@ -283,7 +282,7 @@ async function removeCarouselImageAdmin(id) {
 
 async function loadAdminData() {
   try {
-      if(isAdminPage()){
+      if(isAdminPage() ){
         const token = localStorage.getItem('token');
         if (!token) {
             console.log('No token found. Redirecting to login.');

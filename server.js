@@ -17,7 +17,6 @@ let mailTransporter;
 const envConfig = dotenv.config({ path: path.resolve(__dirname, 'variables.env') });
 
 
-// Nodemailer setup
 if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
   mailTransporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -41,7 +40,6 @@ if (!process.env.JWT_SECRET) {
     process.exit(1);
 }
 if (envConfig.error) {
-  // This is a critical error if the file is expected to be present.
   console.error("💥 FATAL ERROR: Could not load variables.env file. Please ensure it exists.");
   process.exit(1); 
 }
@@ -294,8 +292,6 @@ app.post('/api/submit-contact', async (req, res) => {
 
   console.log(`Contact Form Action determined: ${contactFormAction}`);
   
-  // The rest of the contact form logic is primarily external (WhatsApp/Nodemailer) and remains the same
-  // ... (Full logic from original file here) ...
   if (contactFormAction === 'whatsapp') {
       const whatsappNumber = adminSchoolWhatsappNumber || process.env.SCHOOL_WHATSAPP_NUMBER;
       if (!whatsappNumber) {
@@ -336,7 +332,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'school.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+app.get('/admin', (req, res) => {
+        if (!res.token) {
+            console.log('No token found. Redirecting to login.');
+            res.sendFile(path.join(__dirname, 'public', 'login.html'))
+        }
+        else{
+             res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+        }
+    
+
+   });
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/school', (req, res) => res.sendFile(path.join(__dirname, 'public', 'school.html')));
 
