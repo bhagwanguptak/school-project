@@ -283,14 +283,13 @@ async function removeCarouselImageAdmin(id) {
 
 async function loadAdminData() {
   try {
-  const token = localStorage.getItem('token');
-
-            if (!token) {
-                // If there's no token at all, don't even try to load the page.
-                // Redirect immediately to the login page.
-                console.log('No token found. Redirecting to login.');
-                window.location.href = '/login.html?unauthorized=true';
-            }
+      if(isAdminPage()){
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.log('No token found. Redirecting to login.');
+            window.location.href = '/login.html?unauthorized=true';
+        }
+      }
 
     const settings = await fetchSettings();
     if (!settings) return;

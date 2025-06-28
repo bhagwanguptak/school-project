@@ -1,4 +1,3 @@
-// server.js - COMPLETE JWT IMPLEMENTATION
 const dotenv = require('dotenv');
 const path = require('path');
 const express = require('express');
@@ -8,7 +7,7 @@ const multer = require('multer');
 const fs = require('fs');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
-const jwt = require('jsonwebtoken'); // The new library for authentication
+const jwt = require('jsonwebtoken'); 
 
 const dbManager = require('./database');
 
@@ -34,11 +33,6 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
   console.warn("Nodemailer: SMTP environment variables not fully set.");
 }
 
-// =================================================================
-// 1. CORE MIDDLEWARE
-// =================================================================
-
-// Only trust the proxy in production (e.g., on Render)
 if (process.env.NODE_ENV === 'production') {
     app.set('trust proxy', 1);
 }
@@ -49,10 +43,10 @@ if (!process.env.JWT_SECRET) {
 if (envConfig.error) {
   // This is a critical error if the file is expected to be present.
   console.error("💥 FATAL ERROR: Could not load variables.env file. Please ensure it exists.");
-  process.exit(1); // Exit the process with a failure code
+  process.exit(1); 
 }
 
-// CORS Configuration
+
 const allowedOrigins = [ 'http://localhost:3000' ];
 if (process.env.FRONTEND_URL) {
     allowedOrigins.push(process.env.FRONTEND_URL);
@@ -73,12 +67,10 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '20mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 
-// =================================================================
-// 2. JWT AUTHENTICATION MIDDLEWARE
-// =================================================================
+
 function verifyToken(req, res, next) {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer TOKEN"
+    const token = authHeader && authHeader.split(' ')[1]; 
 
     if (!token) {
         return res.status(401).json({ message: 'Access denied. No token provided.' });
@@ -89,16 +81,14 @@ function verifyToken(req, res, next) {
             console.warn('Invalid token received:', err.message);
             return res.status(403).json({ message: 'Access denied. Invalid or expired token.' });
         }
-        req.user = user; // Attach decoded user payload to the request object
+        req.user = user; 
         next();
     });
 }
 
-// =================================================================
-// 3. API ROUTES
-// =================================================================
 
-// --- Authentication API ---
+
+
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -126,7 +116,6 @@ app.post('/api/logout', (req, res) => {
     res.status(200).json({ message: "Logout acknowledged." });
 });
 
-// --- Settings API (Public GET, Protected POST) ---
 app.get('/api/settings', async (req, res) => {
     try {
         const rows = await dbManager.all('SELECT setting_name, setting_value FROM settings');
@@ -162,7 +151,6 @@ app.post('/api/settings', verifyToken, async (req, res) => {
     }
 });
 
-// --- Multer Configuration ---
 const UPLOADS_DIR_PUBLIC = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(UPLOADS_DIR_PUBLIC)) {
     fs.mkdirSync(UPLOADS_DIR_PUBLIC, { recursive: true });
@@ -190,7 +178,6 @@ const multerErrorHandler = (error, req, res, next) => {
     next();
 };
 
-// --- Protected Image Upload API ---
 app.post('/api/upload-logo', verifyToken, upload.single('logo'), multerErrorHandler, (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'No logo file provided.' });
     res.json({ message: 'Logo uploaded successfully', url: `/uploads/${req.file.filename}` });
@@ -205,7 +192,6 @@ app.post('/api/upload-academics-image', verifyToken, upload.single('academicsIma
 });
 
 
-// --- Carousel API (Public GET, Protected POST/DELETE) ---
 app.get('/api/carousel', async (req, res) => {
     try {
         const rows = await dbManager.all('SELECT * FROM carousel_images ORDER BY display_order ASC, id ASC');
@@ -242,7 +228,7 @@ app.delete('/api/carousel/:id', verifyToken, async (req, res) => {
 });
 
 
-// --- User Management API (All Protected) ---
+
 app.get('/api/users', verifyToken, async (req, res) => {
     console.log(`User '${req.user.username}' is requesting user list.`);
     try {
@@ -280,7 +266,6 @@ app.delete('/api/delete-user/:id', verifyToken, async (req, res) => {
 });
 
 
-// --- Public Contact API ---
 app.post('/api/submit-contact', async (req, res) => {
   
    const { contactName, contactEmail, phoneNumber, contactSubject, contactMessage } = req.body;
@@ -344,13 +329,10 @@ app.post('/api/submit-contact', async (req, res) => {
 });
 
 
-// =================================================================
-// 4. STATIC FILE & FRONTEND ROUTING
-// =================================================================
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-// This catch-all route MUST be last. It sends the main HTML file for any
-// request that didn't match an API route or a static file.
+
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'school.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
@@ -359,9 +341,6 @@ app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'public',
 app.get('/school', (req, res) => res.sendFile(path.join(__dirname, 'public', 'school.html')));
 
 
-// =================================================================
-// 5. SERVER STARTUP
-// =================================================================
 async function startServer() {
   try {
     await dbManager.initialize();
@@ -389,7 +368,7 @@ async function startServer() {
   }
 }
 
-// Graceful shutdown
+
 process.on('SIGINT', async () => {
   console.log('\nSIGINT signal received: closing DB connection.');
   await dbManager.close();
