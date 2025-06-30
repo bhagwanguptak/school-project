@@ -4,7 +4,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const multer = require('multer');
-const fs = require('fs');
+// const fs = require('fs');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken'); 
@@ -15,6 +15,10 @@ const saltRounds = 10;
 const app = express();
 let mailTransporter;
 const envConfig = dotenv.config({ path: path.resolve(__dirname, 'variables.env') });
+
+
+// Import the 'put' function from Vercel Blob
+const { put,del } = require('@vercel/blob');
 
 
 if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -65,7 +69,7 @@ app.use(cors(corsOptions));
 
 app.use(bodyParser.json({ limit: '20mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '20mb' }));
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+// app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 
 
@@ -152,45 +156,48 @@ app.post('/api/settings', verifyToken, async (req, res) => {
     }
 });
 
-const UPLOADS_DIR_PUBLIC = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(UPLOADS_DIR_PUBLIC)) {
-    fs.mkdirSync(UPLOADS_DIR_PUBLIC, { recursive: true });
-}
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, UPLOADS_DIR_PUBLIC),
-    filename: (req, file, cb) => {
-        const timestamp = Date.now();
-        const randomString = Math.random().toString(36).substring(2, 8);
-        const ext = path.extname(file.originalname);
-        const basename = path.basename(file.originalname, ext).substring(0, 50).replace(/[^a-zA-Z0-9_.-]/g, '_');
-        cb(null, `${basename}-${timestamp}-${randomString}${ext}`);
-    }
-});
+// const UPLOADS_DIR_PUBLIC = path.join(__dirname, 'public', 'uploads');
+// if (!fs.existsSync(UPLOADS_DIR_PUBLIC)) {
+//     fs.mkdirSync(UPLOADS_DIR_PUBLIC, { recursive: true });
+// }
+// const storage = multer.diskStorage({
+//     destination: (req, file, cb) => cb(null, UPLOADS_DIR_PUBLIC),
+//     filename: (req, file, cb) => {
+//         const timestamp = Date.now();
+//         const randomString = Math.random().toString(36).substring(2, 8);
+//         const ext = path.extname(file.originalname);
+//         const basename = path.basename(file.originalname, ext).substring(0, 50).replace(/[^a-zA-Z0-9_.-]/g, '_');
+//         cb(null, `${basename}-${timestamp}-${randomString}${ext}`);
+//     }
+// });
 const upload = multer({
-    storage: storage,
+    storage: multer.memoryStorage(),
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('image/')) cb(null, true);
         else cb(new Error('Only image files are allowed.'), false);
     },
-    limits: { fileSize: 5 * 1024 * 1024 }
+    limits: { fileSize: 10 * 1024 * 1024 }
 });
 const multerErrorHandler = (error, req, res, next) => {
     if (error) return res.status(400).json({ message: error.message });
     next();
 };
+async function handleUpload(req, res, fileType) {
+    if (!req.file) {
+        return res.status(400).json({ message: `No ${fileType} file provided.` });
+    }
+    try {
+        const blob = await put(req.file.originalname, req.file.buffer, { access: 'public' });
+        res.json({ message: `${fileType} uploaded successfully`, url: blob.url });
+    } catch (error) {
+        console.error(`Error uploading ${fileType} to Vercel Blob:`, error);
+        res.status(500).json({ message: `Failed to upload ${fileType}.` });
+    }
+}
 
-app.post('/api/upload-logo', verifyToken, upload.single('logo'), multerErrorHandler, (req, res) => {
-    if (!req.file) return res.status(400).json({ message: 'No logo file provided.' });
-    res.json({ message: 'Logo uploaded successfully', url: `/uploads/${req.file.filename}` });
-});
-app.post('/api/upload-about-image', verifyToken, upload.single('aboutImage'), multerErrorHandler, (req, res) => {
-    if (!req.file) return res.status(400).json({ message: 'No "About Us" image file provided.' });
-    res.json({ message: 'About Us image uploaded successfully', url: `/uploads/${req.file.filename}` });
-});
-app.post('/api/upload-academics-image', verifyToken, upload.single('academicsImage'), multerErrorHandler, (req, res) => {
-    if (!req.file) return res.status(400).json({ message: 'No "Academics" image file provided.' });
-    res.json({ message: 'Academics image uploaded successfully', url: `/uploads/${req.file.filename}` });
-});
+app.post('/api/upload-logo', verifyToken, upload.single('logo'), multerErrorHandler, (req, res) => handleUpload(req, res, 'logo'));
+app.post('/api/upload-about-image', verifyToken, upload.single('aboutImage'), multerErrorHandler, (req, res) => handleUpload(req, res, '"About Us" image'));
+app.post('/api/upload-academics-image', verifyToken, upload.single('academicsImage'), multerErrorHandler, (req, res) => handleUpload(req, res, '"Academics" image'));
 
 
 app.get('/api/carousel', async (req, res) => {
@@ -207,9 +214,13 @@ app.post('/api/carousel', verifyToken, upload.single('carouselImage'), multerErr
     const { linkURL, altText } = req.body;
     const sql = `INSERT INTO carousel_images (image_url, link_url, alt_text, file_name, display_order) VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(display_order), 0) + 1 FROM carousel_images))`;
     try {
-        const result = await dbManager.run(sql, [imageUrl, linkURL || null, altText || 'Carousel Image', req.file.originalname]);
-        res.status(201).json({ message: 'Carousel image added successfully.', image: { id: result.lastID, image_url: imageUrl } });
+         const blob = await put(req.file.originalname, req.file.buffer, { access: 'public' });
+         const result = await dbManager.run(sql, [blob.url, linkURL || null, altText || 'Carousel Image', req.file.originalname]);
+        
+        res.status(201).json({ message: 'Carousel image added successfully.', image: { id: result.lastID, image_url: blob.url } });
     } catch (err) {
+         console.error("💥 BLOB UPLOAD FAILED! 💥");
+        console.error("Error details:", error); // Print the full error object
         res.status(500).json({ error: "Failed to save carousel image." });
     }
 });
@@ -217,11 +228,23 @@ app.delete('/api/carousel/:id', verifyToken, async (req, res) => {
     const imageId = parseInt(req.params.id, 10);
     if (isNaN(imageId)) return res.status(400).json({ error: 'Invalid image ID.' });
     try {
+         // Step 1: Get the image record from DB to find the Blob URL
         const image = await dbManager.get('SELECT image_url FROM carousel_images WHERE id = ?', [imageId]);
         if (!image) return res.status(404).json({ error: 'Image not found.' });
+
+        // Step 2: Delete the image from the database
         await dbManager.run('DELETE FROM carousel_images WHERE id = ?', [imageId]);
-        const filePath = path.join(UPLOADS_DIR_PUBLIC, path.basename(image.image_url));
-        fs.unlink(filePath, (unlinkErr) => { if (unlinkErr && unlinkErr.code !== 'ENOENT') console.warn(`Could not delete file: ${filePath}`); });
+        
+        // Step 3: Delete the file from Vercel Blob using its URL
+        if (image.image_url) {
+            try {
+                await del(image.image_url);
+            } catch (blobError) {
+                // Log an error if Blob deletion fails, but don't fail the request
+                // The DB record is already gone, which is the most important part.
+                console.warn(`DB record for image ${imageId} deleted, but failed to delete file from Vercel Blob:`, blobError.message);
+            }
+        }
         res.json({ message: 'Carousel image deleted.' });
     } catch (err) {
         res.status(500).json({ error: 'Database error during deletion.' });
@@ -240,14 +263,14 @@ app.get('/api/users', verifyToken, async (req, res) => {
     }
 });
 app.post('/api/add-user', verifyToken, async (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username and password are required.' });
+    const data = req.body;
+    if (!data.username || !data.password) return res.status(400).json({ error: 'Username and password are required.' });
     try {
-        const existingUser = await dbManager.get("SELECT id FROM users WHERE username = ?", [username]);
-        if (existingUser) return res.status(409).json({ message: `User '${username}' already exists.` });
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-        await dbManager.run("INSERT INTO users (username, password) VALUES (?, ?)", [username, hashedPassword]);
-        res.status(201).json({ message: `User '${username}' added successfully.` });
+        const existingUser = await dbManager.get("SELECT id FROM users WHERE username = ?", [data.username]);
+        if (existingUser) return res.status(409).json({ message: `User '${data.username}' already exists.` });
+        const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+        await dbManager.run("INSERT INTO users (username, password) VALUES (?, ?)", [data.username, hashedPassword]);
+        res.status(201).json({ message: `User '${data.username}' added successfully.` });
     } catch (err) {
         res.status(500).json({ error: 'Failed to add user.' });
     }
