@@ -176,7 +176,7 @@ const upload = multer({
         if (file.mimetype.startsWith('image/')) cb(null, true);
         else cb(new Error('Only image files are allowed.'), false);
     },
-    limits: { fileSize: 10 * 1024 * 1024 }
+    limits: { fileSize: 1000 * 1024 * 1024 }
 });
 const multerErrorHandler = (error, req, res, next) => {
     if (error) return res.status(400).json({ message: error.message });
@@ -187,7 +187,7 @@ async function handleUpload(req, res, fileType) {
         return res.status(400).json({ message: `No ${fileType} file provided.` });
     }
     try {
-        const blob = await put(req.file.originalname, req.file.buffer, { access: 'public' });
+        const blob = await put(req.file.originalname, req.file.buffer, { access: 'public',allowOverwrite: true });
         res.json({ message: `${fileType} uploaded successfully`, url: blob.url });
     } catch (error) {
         console.error(`Error uploading ${fileType} to Vercel Blob:`, error);
