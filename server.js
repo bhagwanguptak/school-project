@@ -49,7 +49,7 @@ if (envConfig.error) {
 }
 
 
-const allowedOrigins = [ 'http://localhost:3000' ,'https://school-project-one-sigma.vercel.app'];
+const allowedOrigins = [ 'http://localhost:3000' ,'https://school-project-one-sigma.vercel.app', 'https://lakshyamtheschool.com'];
 console.log(`Frontend_URL: ${process.env.FRONTEND_URL}`);
 if (process.env.FRONTEND_URL) {
     allowedOrigins.push(process.env.FRONTEND_URL);
