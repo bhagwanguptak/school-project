@@ -47,24 +47,54 @@ if (envConfig.error) {
   console.error("💥 FATAL ERROR: Could not load variables.env file. Please ensure it exists.");
   process.exit(1); 
 }
+const allowedOrigins = [''];
 
-
-const allowedOrigins = [ 'http://localhost:3000' ,'https://school-project-one-sigma.vercel.app', 'https://lakshyamtheschool.com'];
-console.log(`Frontend_URL: ${process.env.FRONTEND_URL}`);
-if (process.env.FRONTEND_URL) {
-    allowedOrigins.push(process.env.FRONTEND_URL);
+if (process.env.VERCEL_URL) {
+    const vercelUrl = process.env.VERCEL_URL.trim(); 
+    if (!allowedOrigins.includes(vercelUrl)) { 
+        allowedOrigins.push(vercelUrl);
+        console.log(`INFO: Added VERCEL_URL: ${vercelUrl}`);
+    }
 }
+
+if (process.env.FRONTEND_URL && process.env.NODE_ENV !== 'production') {
+    const localFrontendUrl = process.env.FRONTEND_URL.trim();
+    if (!allowedOrigins.includes(localFrontendUrl)) { 
+        allowedOrigins.push(localFrontendUrl);
+        console.log(`INFO: Added local FRONTEND_URL: ${localFrontendUrl}`);
+    }
+}
+
+
+//    you can set an env var like: ADDITIONAL_ALLOWED_ORIGINS="https://staging.example.com,https://dev.example.com"
+if (process.env.ADDITIONAL_ALLOWED_ORIGINS) {
+    process.env.ADDITIONAL_ALLOWED_ORIGINS.split(',').forEach(url => {
+        const trimmedUrl = url.trim();
+        if (trimmedUrl && !allowedOrigins.includes(trimmedUrl)) {
+            allowedOrigins.push(trimmedUrl);
+            console.log(`INFO: Added additional allowed origin: ${trimmedUrl}`);
+        }
+    });
+}
+
+
+console.log('Final computed allowedOrigins array:', allowedOrigins); 
 
 const corsOptions = {
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        console.log(`Incoming request origin: '${origin}'`); 
+        if (!origin || allowedOrigins.includes(origin)) {
+            console.log(`Origin ALLOWED: '${origin}'`);
             callback(null, true);
         } else {
+            console.error(`CORS BLOCKED: Origin '${origin}' is not in allowed list.`);
+            console.error('Allowed list:', allowedOrigins);
             callback(new Error('The CORS policy for this site does not allow access from your origin.'));
         }
     },
+    credentials: true 
 };
-console.log("corsOptions: "+corsOptions);
+
 app.use(cors(corsOptions));
 
 app.use(bodyParser.json({ limit: '20mb' }));
