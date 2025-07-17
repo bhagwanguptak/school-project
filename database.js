@@ -73,6 +73,7 @@ const dbManager = {
         this.pgPool = new Pool({
           connectionString: PG_URL,
           ssl: {
+            require: true, 
             rejectUnauthorized: false // Required for Render DB connections from outside Render
           }
         });
